@@ -1,3 +1,4 @@
+//factory.js
 import { ENSName } from './nameClass.js';
 
 export function ensFactory(name, category, stats) {

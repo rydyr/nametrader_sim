@@ -1,3 +1,4 @@
+//nameClass.js
 import factor from "./factor.js";
 
 export class ENSName {
@@ -27,5 +28,5 @@ export class ENSName {
 
 
 ENSName.prototype.calcFMV = function(marketPrice) {
-  this.saleData.price = marketPrice * this.saleData.factor;
+  this.saleData.fmv = marketPrice * this.saleData.factor;
 };

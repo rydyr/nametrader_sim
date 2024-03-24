@@ -1,3 +1,4 @@
+//factor.js
 export default function factor(status) {
   const commonFactor = Math.random() * (2 - 1) + 1;
   const premiumFactor = Math.random() * (3 - 2) + 2;
