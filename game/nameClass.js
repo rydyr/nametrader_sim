@@ -1,4 +1,3 @@
-//nameClass.js
 import factor from "./factor.js";
 
 export class ENSName {
