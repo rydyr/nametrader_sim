@@ -1,3 +1,77 @@
+// domainRenewalEmitter.js
+export class DomainRenewalEmitter { constructor() { 
+  this.renewalCount = 0; 
+  } 
+                                   emitDomainRenewalEvent() { 
+    if (this.renewalCount < 3) {         console.log("[Domain Renewal]: Domain renewal notice: Your domain is about to expire!");     this.renewalCount++; 
+    } 
+  } 
+}
+
+// event.js
+export class Event {
+  constructor(message, impact = false) {
+    this.message = message;
+    this.impact = impact;
+  }
+}
+
+// eventEmitter.js
+import { Event } from "./event.js";
+
+export class EventEmitter {
+  constructor(totalEvents) {
+    this.events = [];
+    this.totalEvents = totalEvents;
+    this.eventQueue = [];
+    this.renewalCount = 0;
+  }
+
+  generateEventQueue() {
+    // Add the first event (always the same)
+    this.eventQueue.push(new Event("Welcome to the game!"));
+
+    // Generate 50 random events from the event pool
+    const randomEvents = this.getRandomEvents(50);
+    this.eventQueue.push(...randomEvents);
+
+    // Add the last event (always the same)
+    this.eventQueue.push(new Event("Game Over!"));
+  }
+
+  getRandomEvents(count) {
+    const shuffledEvents = this.events.slice().sort(() => 0.5 - Math.random());
+    return shuffledEvents.slice(0, count);
+  }
+
+  emitEvent() {
+    if (this.eventQueue.length > 0) {
+      const event = this.eventQueue.shift();
+      console.log(`[Event]: ${event.message}`);
+
+      if (event.impact) {
+        // Apply the event impact to the game state
+        // For example, update player's negotiation or selling ability
+        // based on the event attributes
+      }
+    }
+  }
+
+  generateDomainRenewalEvent() {
+    if (this.renewalCount < 3) {
+      const renewalEvent = new Event("Domain renewal notice: Your domain is about to expire!");
+      this.eventQueue.unshift(renewalEvent);
+      this.renewalCount++;
+    }
+  }
+}
+
+// eventMessages.js
+export const eventMessages = [
+  //messages here
+]
+
+
 // factor.js
 export default function factor(status) {
   const commonFactor = Math.random() * (2 - 1) + 1;
@@ -36,6 +110,10 @@ import { stats } from "./stats.js";
 import { floorPrice } from "./floorPrices.js";
 import simPF from "./simulation.js";
 import { Market } from "./market.js";
+import { EventEmitter } from "./eventEmitter.js";
+import { eventMessages } from "./eventMessages.js";
+import { Event } from "./event.js";
+import { DomainRenewalEmitter } from "./domainRenewalEmitter.js";
 
 export class Game {
   constructor(totalTurns = 52) {
@@ -43,6 +121,24 @@ export class Game {
     this.turn = 0;
     this.totalTurns = totalTurns;
     this.initialPrice;
+    this.firstRenewal = 0;
+    this.secondRenewal = 0;
+    this.eventEmitter = new EventEmitter(totalTurns);
+    this.domainRenewalEmitter = new DomainRenewalEmitter();
+    this.initializeEvents();
+  }
+
+  initializeEvents(){
+    // Set renewals
+    this.firstRenewal = Math.floor(Math.random() * 18) + 12;
+    this.secondRenewal = Math.floor(Math.random() * (48 - 32) + 32);
+
+    
+    // Create event objects from the messages
+    this.eventEmitter.events = eventMessages.map((message) => new Event(message));
+
+    // Generate the event queue for the game session
+    this.eventEmitter.generateEventQueue();
   }
 
   initializeGame() {
@@ -66,9 +162,24 @@ export class Game {
 
       // Update market conditions
       this.market.updateMarketConditions();
+      
+     // Emit next event from the loop
+      this.eventEmitter.emitEvent();
+
+    // Emit domain renewals 2x
+if (this.turn === this.firstRenewal || this.turn === this.secondRenewal) { this.domainRenewalEmitter.emitDomainRenewalEvent(); }
+
 
       // Simulate domain name events (e.g., renewals, expirations)
       this.market.simulateDomainEvents();
+
+      // Simulate NPC market activity 
+      if (this.turn === 1) { 
+        this.market.simulateNPCOwnership(); 
+        this.market.simulateNPCListings();
+      } else { 
+        this.market.updateNPCMarketActivity();
+      }
       
 
       // Update domain name prices based on market conditions
@@ -112,7 +223,7 @@ export class Game {
   }
 
 
-  static run(totalTurns = 52) {
+  static run(totalTurns = 53) {
     const game = new Game(totalTurns);
     game.startSimulation();
   }
@@ -146,6 +257,9 @@ export class Market {
     this.bullStart = 0;
     this.bullEnd = 0;
     this.bullMarketTurns = 0;
+    this.npcOwnedPercentage = 0.7;
+    this.npcPercentageListed = 0.2;
+    this.npcPriceMultiplier = Math.random() * 1 + 1
 
     this.setMarketStartTurns();
   }
@@ -168,11 +282,11 @@ export class Market {
         if (this.turnCount === this.bearStart && !this.bear) {
           this.marketType = "bear"; 
           this.bear = true;
-          console.log("Bear!", this.bearStart)
+          this.sendMessage("Bear Market has started!")
         } else if (this.turnCount === this.bullStart && !this.bull) {
         this.marketType = "bull";
         this.bull = true;
-        console.log("Bull!", this.bullStart)
+        this.sendMessage("Bull Market has started!");
         }
       } else if (this.marketType === "bear") {
         this.bearMarketTurns++;
@@ -187,6 +301,7 @@ export class Market {
       (this.marketType === "bull" && this.bullMarketTurns >= this.bullEnd)
     ) {
       this.marketType = "normal";
+      this.sendMessage("The Market has returned to normal.")
     }
 
     if (this.marketType === "normal") {
@@ -214,6 +329,10 @@ export class Market {
     });
   }
 
+  sendMessage(message) {
+    return console.log(`Market Message: ${message}`);
+  }
+
   getMarketState() {
     // Return the current state of the market
     return {
@@ -221,6 +340,74 @@ export class Market {
       marketType: this.marketType,
       volatility: this.volatility,
     };
+  }
+
+  simulateNPCOwnership(){
+    const npcOwnedCount = Math.floor(this.domainNames.length * this.npcOwnedPercentage);
+    const shuffledDomains = this.domainNames.sort(() => 0.5 - Math.random());
+    shuffledDomains.slice(0,npcOwnedCount).forEach((name) => {
+      name.npcOwner = true;
+    });
+  }
+
+  simulateNPCListings() {
+    const npcOwnedDomains = this.domainNames.filter((name) => name.npcOwner);
+    const npcListedCount = Math.floor(npcOwnedDomains.length * this.npcPercentageListed);
+    const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
+    shuffledNPCDomains.slice(0, npcListedCount).forEach((name) => {
+      name.saleData.forSale = true;
+      name.saleData.price = Math.floor(name.saleData.fmv * this.npcPriceMultiplier);
+    });
+  }
+
+  simulateNPCSales() {
+    const npcOwnedDomains = this.domainNames.filter((name) => name.ownedByNPC);
+    const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
+    const salePercentage = 0.3; // Percentage of names that are sold when switching ownership
+    const saleDomains = shuffledNPCDomains.slice(0, Math.floor(shuffledNPCDomains.length * salePercentage));
+
+    saleDomains.forEach((name) => {
+      name.ownedByNPC = false;
+      name.saleData.forSale = false;
+      name.saleData.owner = ''; // Clear the owner
+      this.logMarketMessage(`${name.name} has sold!`)
+
+      if (name.status === "grail") {
+        this.logMarketMessage(`Grail domain ${name.name} has been sold!`);
+      } else if (name.status === "premium") {
+        this.logMarketMessage(`Premium domain ${name.name} has been sold!`);
+      } 
+    });
+  }
+
+
+  updateNPCMarketActivity() {
+  // Simulate NPC ownership change.
+    const npcOwnedDomains = this.domainNames.filter((name) => name.ownedByNPC);
+    const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
+    const changeCount = Math.floor(npcOwnedDomains.length * 0.1);  // 10% change in ownership 
+
+shuffledNPCDomains.slice(0, changeCount).forEach((name) => { 
+name.ownedByNPC = false; 
+});
+
+    // Simulate NPC sales 
+    this.simulateNPCSales();
+
+   // Simulate change in listings
+    const npcListedDomains = npcOwnedDomains.filter((name) => name.saleData.forSale);
+    npcListedDomains.forEach((name) => { 
+      if (Math.random() < 0.5) {
+        name.saleData.forSale = false; 
+      } 
+    });
+
+    // Add new NPC listing
+    this.simulateNPCListings();
+  }
+
+  logMarketMessage(message) {
+     console.log(`Sales Bot: ${message}`);
   }
 }
 
@@ -241,6 +428,7 @@ export class ENSName {
     this.name = newName + '.eth';
     this.category = category;
     this.status = status;
+    this.npcOwner = false;
     this.saleData = {
       factor: factor(status),
       fmv: 0,

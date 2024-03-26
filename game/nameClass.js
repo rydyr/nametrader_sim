@@ -14,6 +14,7 @@ export class ENSName {
     this.name = newName + '.eth';
     this.category = category;
     this.status = status;
+    this.npcOwner = false;
     this.saleData = {
       factor: factor(status),
       fmv: 0,
