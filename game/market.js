@@ -1,5 +1,5 @@
 export class Market {
-  constructor(domainNames) {
+  constructor(domainNames,npcs) {
     this.domainNames = domainNames;
     this.marketType = "normal";
     this.volatility = 0.1;
@@ -12,8 +12,9 @@ export class Market {
     this.bullStart = 0;
     this.bullEnd = 0;
     this.bullMarketTurns = 0;
-    this.npcOwnedPercentage = 0.3;
-    this.npcPercentageListed = 0.2;
+    this.npcs = npcs;
+    this.npcOwnedPercentage = 1;
+    this.npcPercentageListed = 0.5;
     this.npcPriceMultiplier = Math.random() * 1 + 1
 
     this.setMarketStartTurns();
@@ -101,11 +102,12 @@ export class Market {
     };
   }
 
-  simulateNPCOwnership(){
-    const npcOwnedCount = Math.floor(this.domainNames.length * this.npcOwnedPercentage);
-    const shuffledDomains = this.domainNames.sort(() => 0.5 - Math.random());
-    shuffledDomains.slice(0,npcOwnedCount).forEach((name) => {
-      name.npcOwner = true;
+  simulateNPCOwnership() {
+    this.domainNames.forEach((name) => {
+      const randomNPC = this.npcs[Math.floor(Math.random() * this.npcs.length)];
+      name.npcOwner = randomNPC;
+      name.saleData.owner = randomNPC.name;
+      randomNPC.portfolio.push(name);
     });
   }
 
@@ -115,45 +117,64 @@ export class Market {
     const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
     shuffledNPCDomains.slice(0, npcListedCount).forEach((name) => {
       name.saleData.forSale = true;
-      name.saleData.price = Math.floor(name.saleData.fmv * this.npcPriceMultiplier);
+      name.saleData.price = Math.floor(name.saleData.fmv * name.npcOwner.valueModifier);
     });
   }
 
-
-  updateNPCMarketActivity() {
-  // Simulate NPC ownership change.
-    const npcOwnedDomains = this.domainNames.filter((name) => name.npcOwner);
-    const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
-    const changeCount = Math.floor(npcOwnedDomains.length * 0.02);  // 2% change in ownership 
-
-shuffledNPCDomains.slice(0, changeCount).forEach((name) => { 
-name.npcOwner = false; 
-});
-
-    // Simulate NPC sales 
-    const npcListedDomains = npcOwnedDomains.filter((name) => name.saleData.forSale); 
-    const saleCount = Math.floor(npcListedDomains.length * 0.1); // 10% of listed domains sold per turn 
-    const shuffledListedDomains = npcListedDomains.sort(() => 0.5 - Math.random()); 
-    shuffledListedDomains.slice(0, saleCount).forEach((name) => { 
-      name.npcOwner = false;           name.saleData.forSale = false;                                 name.saleData.owner = ''; // Clear the owner 
-      
-      if (name.status === "premium" ) {
-        this.logMarketMessage(`Premium name ${name.name} has been sold!`); 
-      } else if (name.status === "grail") {
-        this.logMarketMessage(`Grail name ${name.name} has been sold!`);
-      }
-    });
-
-    // Simulate change in listings 
-    npcOwnedDomains.forEach((name) => { 
-      if (name.saleData.forSale && Math.random() < 0.1) { 
-        name.saleData.forSale = false; // 10% chance of delisting per turn 
-      } else if (!name.saleData.forSale && Math.random() < 0.05) { 
-        name.saleData.forSale = true
-      }
-    }); 
-  }
   logMarketMessage(message) {
     return console.log(`Sales Bot: ${message}`)
   }
+
+  updateNPCMarketActivity() {
+    // Simulate NPC ownership change
+    const npcOwnedDomains = this.domainNames.filter((name) => name.npcOwner);
+    const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
+    const changeCount = Math.floor(npcOwnedDomains.length * 0.2); // 20% change in ownership
+
+    shuffledNPCDomains.slice(0, changeCount).forEach((name) => {
+      const newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
+      name.npcOwner.portfolio = name.npcOwner.portfolio.filter((d) => d !== name);
+      name.saleData.owner = newOwner.name;
+      name.npcOwner = newOwner;
+      newOwner.portfolio.push(name);
+    });
+
+      // Simulate NPC sales
+      const npcListedDomains = npcOwnedDomains.filter((name) => name.saleData.forSale);
+      const saleCount = Math.floor(npcListedDomains.length * 0.1); // 10% of listed domains sold per turn
+      const shuffledListedDomains = npcListedDomains.sort(() => 0.5 - Math.random());
+
+      shuffledListedDomains.slice(0, saleCount).forEach((name) => {
+        if (name.npcOwner && typeof name.npcOwner === 'object') {
+          name.npcOwner.bankroll += name.saleData.price;
+          name.npcOwner.portfolio = name.npcOwner.portfolio.filter((d) => d !== name);
+
+          const newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
+          if (newOwner.bankroll >= name.saleData.price) {
+            name.saleData.owner = newOwner.name;
+            name.npcOwner = newOwner;
+            newOwner.portfolio.push(name);
+            newOwner.bankroll -= name.saleData.price;
+
+            if (name.status === "premium") {
+              this.logMarketMessage(`Premium name ${name.name} has been sold!`);
+            } else if (name.status === "grail") {
+              this.logMarketMessage(`Grail name ${name.name} has been sold!`);
+            }
+          }
+        }
+        name.saleData.forSale = false;
+      });
+
+    // Simulate change in listings
+    npcOwnedDomains.forEach((name) => {
+      if (name.saleData.forSale && Math.random() < 0.1) {
+        name.saleData.forSale = false; // 10% chance of delisting per turn
+      } else if (!name.saleData.forSale && Math.random() < 0.05) {
+        name.saleData.forSale = true; // 5% chance of listing per turn
+        name.saleData.price = Math.floor(name.saleData.fmv * name.npcOwner.valueModifier);
+      }
+    });
+  }
+  
 }

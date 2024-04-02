@@ -1,4 +1,4 @@
-import factor from "./factor.js";
+import factor from "./nameFactor.js";
 
 export class ENSName {
   constructor(name,category,stats){

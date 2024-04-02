@@ -1,4 +1,4 @@
-import { nameObjectBuilder } from "./higher-order.js";
+import { nameObjectBuilder } from "./objectBuilder.js";
 import { ensFactory } from "./factory.js";
 import { names } from "./names.js";
 import { stats } from "./stats.js";
@@ -9,6 +9,10 @@ import { EventEmitter } from "./eventEmitter.js";
 import { eventMessages } from "./eventMessages.js";
 import { Event } from "./event.js";
 import { DomainRenewalEmitter } from "./domainRenewalEmitter.js";
+import readline from 'readline';
+import { NPC } from "./npc.js";
+import { npcFactory } from './npcFactory.js';
+import { npcNames } from './npcNames.js';
 
 export class Game {
   constructor(totalTurns = 52) {
@@ -21,6 +25,7 @@ export class Game {
     this.eventEmitter = new EventEmitter(totalTurns);
     this.domainRenewalEmitter = new DomainRenewalEmitter();
     this.initializeEvents();
+    this.npcs = npcFactory(npcNames, NPC);
   }
 
   initializeEvents(){
@@ -42,20 +47,25 @@ export class Game {
     for (const name of ens) {
       name.calcFMV(floorPrice["999"].price);
     }
-    this.market = new Market(ens);
+    
+this.market = new Market(ens, this.npcs);
+
   }
+
 
   startSimulation() {
     this.initializeGame();
     this.simulationLoop();
   }
 
-  simulationLoop() {
+  async simulationLoop() {
     while (this.turn < this.totalTurns) {
+      await this.waitForUserInput();
       // Simulate NPC market activity 
       if (this.turn === 1) { 
         this.market.simulateNPCOwnership(); 
         this.market.simulateNPCListings();
+      //  console.log(this.npcs[0])
       } else { 
         this.market.updateNPCMarketActivity();
 
@@ -89,35 +99,43 @@ if (this.turn === this.firstRenewal || this.turn === this.secondRenewal) { this.
     this.displaySimulationSummary();
   }
 
-  // Placeholder methods to be implemented
   displayMarketState() {
-    console.log(`Turn: ${this.turn}`);
-    console.log(`Market State: ${this.market.marketType}`);
-/*
-    console.log("Domain name sale data (first 1):");
-    const domainNamesToDisplay = this.market.domainNames.slice(0, 1);
-    domainNamesToDisplay.forEach((name) => {
-      const data = {
-        name: name.name,
-        saleData: name.saleData.fmv
-      };
-      console.log(JSON.stringify(data, null, 2));
-      console.log("---")
-      if (this.turn === 1) {
-         this.initialPrice = name.saleData.fmv;
-      }
-    }) */
-    //console.log(this.market.getMarketState());
+    const spaces = " ".repeat(2);
+    console.log(`=== Turn ${this.turn} ===`);
+    console.log(`Market Type: ${this.market.marketType}`);
+    console.log("Domain Name\tPrice\tOwner\tBankroll");
+    console.log("---------------------------------------");
+
+    this.market.domainNames.forEach((name) => {
+      const owner = name.saleData.owner;
+      const bankroll = owner ? this.market.npcs.find(npc => npc.name === owner).bankroll : "-";
+      console.log(`${name.name} ${spaces}${name.saleData.fmv.toFixed(2)}${spaces}${owner}\t${bankroll}`);
+    });
+
+    console.log("---------------------------------------");
   }
+
+  waitForUserInput() {
+ return new Promise((resolve) => { 
+const rl = readline.createInterface({ 
+input: process.stdin, output: process.stdout, 
+}); 
+rl.question('Press Enter to proceed to the next turn...', () => { 
+  console.log();
+rl.close(); 
+resolve(); 
+})
+})
+}
 
   displaySimulationSummary() {
     console.log("Simulation Summary:")
     console.log("Simulation Completed!")
-   // console.log(`Start Price: ${this.initialPrice}`);
+   // console.log(this.npcs[0]);
   }
 
 
-  static run(totalTurns = 53) {
+  static run(totalTurns = 10) {
     const game = new Game(totalTurns);
     game.startSimulation();
   }

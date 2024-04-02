@@ -8,7 +8,7 @@ const directoryPath = './game';
 const outputFile = './combined.js';
 
 // Files to ignore
-const ignore = ['stats.js','eventMessages.js','floorPrices.js'];
+const ignore = ['stats.js','eventMessages.js','floorPrices.js','npcNames.js'];
 
 fs.readdir(directoryPath, (err, files) => {
   if (err) {
