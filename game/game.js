@@ -108,7 +108,18 @@ if (this.turn === this.firstRenewal || this.turn === this.secondRenewal) { this.
 
     this.market.domainNames.forEach((name) => {
       const owner = name.saleData.owner;
-      const bankroll = owner ? this.market.npcs.find(npc => npc.name === owner).bankroll : "-";
+
+      let bankroll = "-";
+      if (owner) {
+        const npc = this.npcs.find((npc) => npc.name === owner);
+        if (npc) {
+           bankroll = Math.floor(npc.bankroll);
+        }
+      }
+
+      
+
+      
       console.log(`${name.name} ${spaces}${name.saleData.fmv.toFixed(2)}${spaces}${owner}\t${bankroll}`);
     });
 
