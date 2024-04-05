@@ -159,10 +159,6 @@ this.market = new Market(ens, this.npcs);
     // Emit domain renewals 2x
 if (this.turn === this.firstRenewal || this.turn === this.secondRenewal) { this.domainRenewalEmitter.emitDomainRenewalEvent(); }
 
-
-      // Simulate domain name events (e.g., renewals, expirations)
-      this.market.simulateDomainEvents();
-
       // Update domain name prices based on market conditions
       const updatedPrices = simPF(this.market.getAssetPrices(),        this.market.volatility, this.market.marketType);
       this.market.updateAssetPrices(updatedPrices);
@@ -186,8 +182,8 @@ if (this.turn === this.firstRenewal || this.turn === this.secondRenewal) { this.
       const owner = name.npcOwner ? name.npcOwner.name : "-";
       const bankroll = name.npcOwner ? Math.floor(name.npcOwner.bankroll) : "-";
       const vPrice = parseInt(Math.floor(name.saleData.price));
-      const aPrice = vPrice.length === 5 ? vPrice : vPrice + " ";
-      const price = name.saleData.forSale ? aPrice : '00000 ';
+      const aPrice = vPrice.toString().padEnd(6," ");
+      const price = name.saleData.forSale ? aPrice : '0     ';
       console.log(`${name.name} ${spaces}${price}${spaces}${owner.padEnd(10," ")}\t${bankroll}`);
     });
 
@@ -214,7 +210,7 @@ resolve();
   }
 
 
-  static run(totalTurns = 10) {
+  static run(totalTurns = 53) {
     const game = new Game(totalTurns);
     game.startSimulation();
   }
@@ -292,13 +288,6 @@ export class Market {
     }
   }
 
-  
-  simulateDomainEvents() {
-    // Simulate domain name events (e.g., renewals, expirations)
-    // ...
-  }
-  
-
   getAssetPrices() {
     return this.domainNames.reduce((prices, name) => {
       prices[name.name] = { price: name.saleData.fmv };
@@ -368,35 +357,30 @@ export class Market {
     shuffledNPCDomains.forEach((name) => {
       // Simulate NPC sales
       if (name.saleData.forSale && Math.random() < 0.3) { // 30% chance of sale per listed domain
-        const salePrice = name.saleData.price; 
-        
-        const newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
-        if (newOwner.bankroll >= salePrice) {
-          name.saleData.owner = newOwner.name; 
+        const salePrice = name.saleData.price;
 
-/**********logging**********         console.log(`[Ownership Transfer] Domain: ${name.name}`); 
-          console.log(`[Ownership Transfer] Seller: ${name.npcOwner.name}, Bankroll Before: ${name.npcOwner.bankroll}`); 
-          console.log(`[Ownership Transfer] Buyer: ${newOwner.name}, Bankroll Before: ${newOwner.bankroll}`); 
-          */
-          name.npcOwner.portfolio = name.npcOwner.portfolio.filter((d) => d !== name); 
+        let newOwner;
+        do {
+          newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
+        } while (newOwner === name.npcOwner);
+
+        if (newOwner.bankroll >= salePrice) {
+          name.saleData.owner = newOwner.name;
+
+          name.npcOwner.portfolio = name.npcOwner.portfolio.filter((d) => d !== name);
           name.npcOwner.bankroll += salePrice;
-          name.npcOwner = newOwner; 
+          name.npcOwner = newOwner;
           newOwner.portfolio.push(name);
           newOwner.bankroll -= salePrice;
-
-    /*      console.log(`[Ownership Transfer] Seller: ${name.npcOwner.name}, Bankroll After: ${name.npcOwner.bankroll}`); 
-          console.log(`[Ownership Transfer] Buyer: ${newOwner.name}, Bankroll After: ${newOwner.bankroll}`); 
-          console.log(`[Ownership Transfer] Sale Price: ${salePrice}`); 
-          
-*/
+/*
           if (name.status === "premium") {
             this.logMarketMessage(`Premium name ${name.name} has been sold!`);
           } else if (name.status === "grail") {
-            this.logMarketMessage(`Grail name ${name.name} has been sold!`);
+            this.logMarketMessage(`Grail name ${name.name} has been sold!`);*/
+          this.logMarketMessage(`Name ${name.name} has been sold!`);
           }
         }
         name.saleData.forSale = false;
-      }
 
       // Simulate change in listings
       if (name.saleData.forSale && Math.random() < 0.2) {
