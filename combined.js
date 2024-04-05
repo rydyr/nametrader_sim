@@ -66,22 +66,6 @@ export class EventEmitter {
   }
 }
 
-// factor.js
-export default function factor(status) {
-  const commonFactor = Math.random() * (2 - 1) + 1;
-  const premiumFactor = Math.random() * (3 - 2) + 2;
-  const grailFactor = Math.random() * (4 - 3) + 3;
-  if (status == "grail") {
-     return grailFactor;
-  } else if (status === "premium") {
-     return premiumFactor;
-  } else {
-     return commonFactor;
-  }
-}
-  
-
-
 // factory.js
 import { ENSName } from './nameClass.js';
 
@@ -90,7 +74,7 @@ export function ensFactory(name, category, stats) {
 }
 
 // game.js
-import { nameObjectBuilder } from "./higher-order.js";
+import { nameObjectBuilder } from "./objectBuilder.js";
 import { ensFactory } from "./factory.js";
 import { names } from "./names.js";
 import { stats } from "./stats.js";
@@ -157,7 +141,7 @@ this.market = new Market(ens, this.npcs);
       if (this.turn === 1) { 
         this.market.simulateNPCOwnership(); 
         this.market.simulateNPCListings();
-        console.log(this.npcs[0])
+      //  console.log(this.npcs[0])
       } else { 
         this.market.updateNPCMarketActivity();
 
@@ -191,28 +175,23 @@ if (this.turn === this.firstRenewal || this.turn === this.secondRenewal) { this.
     this.displaySimulationSummary();
   }
 
-  // Placeholder methods to be implemented
   displayMarketState() {
-    console.log(`Turn: ${this.turn}`);
-    console.log(`Market State: ${this.market.marketType}`);
+    const spaces = " ".repeat(2);
+    console.log(`=== Turn ${this.turn} ===`);
+    console.log(`Market Type: ${this.market.marketType}`);
+    console.log("Domain Name\tPrice\tOwner\tBankroll");
+    console.log("---------------------------------------");
 
-    console.log("Domain name sale data:");
-    const domainNamesToDisplay = this.market.domainNames.slice(0, 1);
-    domainNamesToDisplay.forEach((name) => {
-      /*
-      const data = {
-        name: name.name,
-        saleData: name.saleData.fmv
-      };
-      console.log(JSON.stringify(data, null, 2));
-      console.log("---")
-      if (this.turn === 1) {
-         this.initialPrice = name.saleData.fmv;
-      }
-      */
-      console.log(`${name.name} at ${name.saleData.fmv}`);
-    }) 
-    //console.log(this.market.getMarketState());
+    this.market.domainNames.forEach((name) => {
+      const owner = name.npcOwner ? name.npcOwner.name : "-";
+      const bankroll = name.npcOwner ? Math.floor(name.npcOwner.bankroll) : "-";
+      const vPrice = parseInt(Math.floor(name.saleData.price));
+      const aPrice = vPrice.length === 5 ? vPrice : vPrice + " ";
+      const price = name.saleData.forSale ? aPrice : '00000 ';
+      console.log(`${name.name} ${spaces}${price}${spaces}${owner.padEnd(10," ")}\t${bankroll}`);
+    });
+
+    console.log("---------------------------------------");
   }
 
   waitForUserInput() {
@@ -231,28 +210,15 @@ resolve();
   displaySimulationSummary() {
     console.log("Simulation Summary:")
     console.log("Simulation Completed!")
-    console.log(this.npcs[0]);
+   // console.log(this.npcs[0]);
   }
 
 
-  static run(totalTurns = 53) {
+  static run(totalTurns = 10) {
     const game = new Game(totalTurns);
     game.startSimulation();
   }
 }
-
-// higher-order.js
-export function nameObjectBuilder(names,category,stats,factory){
-  const cat = [];
-  for (const name in names) {
-    cat.push(factory(name,category,stats));
-  }
-  
-
-  return cat
-
-  }
-
 
 // market.js
 export class Market {
@@ -270,8 +236,8 @@ export class Market {
     this.bullEnd = 0;
     this.bullMarketTurns = 0;
     this.npcs = npcs;
-    this.npcOwnedPercentage = 0.3;
-    this.npcPercentageListed = 0.2;
+    this.npcOwnedPercentage = 1;
+    this.npcPercentageListed = 0.5;
     this.npcPriceMultiplier = Math.random() * 1 + 1
 
     this.setMarketStartTurns();
@@ -373,8 +339,21 @@ export class Market {
     const npcListedCount = Math.floor(npcOwnedDomains.length * this.npcPercentageListed);
     const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
     shuffledNPCDomains.slice(0, npcListedCount).forEach((name) => {
+      
+/**********Logging**********
+
+      console.log(`[Listing] Domain: ${name.name}`); 
+      console.log(`[Listing] Owner: ${name.npcOwner.name}, Bankroll Before: ${name.npcOwner.bankroll}`); 
+      */
+      
       name.saleData.forSale = true;
       name.saleData.price = Math.floor(name.saleData.fmv * name.npcOwner.valueModifier);
+
+/********** logging *********
+      
+      console.log(`[Listing] Owner: ${name.npcOwner.name}, Bankroll After: ${name.npcOwner.bankroll}`); 
+      console.log(`[Listing] Listed Price: ${name.saleData.price}`);
+***************************/
     });
   }
 
@@ -383,50 +362,47 @@ export class Market {
   }
 
   updateNPCMarketActivity() {
-    // Simulate NPC ownership change
     const npcOwnedDomains = this.domainNames.filter((name) => name.npcOwner);
     const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
-    const changeCount = Math.floor(npcOwnedDomains.length * 0.02); // 2% change in ownership
 
-    shuffledNPCDomains.slice(0, changeCount).forEach((name) => {
-      const newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
-      name.npcOwner.portfolio = name.npcOwner.portfolio.filter((d) => d !== name);
-      name.saleData.owner = newOwner.name;
-      name.npcOwner = newOwner;
-      newOwner.portfolio.push(name);
-    });
-
-    // Simulate NPC sales
-    const npcListedDomains = npcOwnedDomains.filter((name) => name.saleData.forSale);
-    const saleCount = Math.floor(npcListedDomains.length * 0.1); // 10% of listed domains sold per turn
-    const shuffledListedDomains = npcListedDomains.sort(() => 0.5 - Math.random());
-
-    shuffledListedDomains.slice(0, saleCount).forEach((name) => {
-      if (name.npcOwner && typeof name.npcOwner === 'object') {
-        name.npcOwner.bankroll += name.saleData.price;
-        name.npcOwner.portfolio = name.npcOwner.portfolio.filter((d) => d !== name);
-
+    shuffledNPCDomains.forEach((name) => {
+      // Simulate NPC sales
+      if (name.saleData.forSale && Math.random() < 0.3) { // 30% chance of sale per listed domain
+        const salePrice = name.saleData.price; 
+        
         const newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
-        name.saleData.owner = newOwner.name;
-        name.npcOwner = newOwner;
-        newOwner.portfolio.push(name);
-        newOwner.bankroll -= name.saleData.price;
+        if (newOwner.bankroll >= salePrice) {
+          name.saleData.owner = newOwner.name; 
 
-        if (name.status === "premium") {
-          this.logMarketMessage(`Premium name ${name.name} has been sold!`);
-        } else if (name.status === "grail") {
-          this.logMarketMessage(`Grail name ${name.name} has been sold!`);
+/**********logging**********         console.log(`[Ownership Transfer] Domain: ${name.name}`); 
+          console.log(`[Ownership Transfer] Seller: ${name.npcOwner.name}, Bankroll Before: ${name.npcOwner.bankroll}`); 
+          console.log(`[Ownership Transfer] Buyer: ${newOwner.name}, Bankroll Before: ${newOwner.bankroll}`); 
+          */
+          name.npcOwner.portfolio = name.npcOwner.portfolio.filter((d) => d !== name); 
+          name.npcOwner.bankroll += salePrice;
+          name.npcOwner = newOwner; 
+          newOwner.portfolio.push(name);
+          newOwner.bankroll -= salePrice;
+
+    /*      console.log(`[Ownership Transfer] Seller: ${name.npcOwner.name}, Bankroll After: ${name.npcOwner.bankroll}`); 
+          console.log(`[Ownership Transfer] Buyer: ${newOwner.name}, Bankroll After: ${newOwner.bankroll}`); 
+          console.log(`[Ownership Transfer] Sale Price: ${salePrice}`); 
+          
+*/
+          if (name.status === "premium") {
+            this.logMarketMessage(`Premium name ${name.name} has been sold!`);
+          } else if (name.status === "grail") {
+            this.logMarketMessage(`Grail name ${name.name} has been sold!`);
+          }
         }
+        name.saleData.forSale = false;
       }
-      name.saleData.forSale = false;
-    });
 
-    // Simulate change in listings
-    npcOwnedDomains.forEach((name) => {
-      if (name.saleData.forSale && Math.random() < 0.1) {
-        name.saleData.forSale = false; // 10% chance of delisting per turn
-      } else if (!name.saleData.forSale && Math.random() < 0.05) {
-        name.saleData.forSale = true; // 5% chance of listing per turn
+      // Simulate change in listings
+      if (name.saleData.forSale && Math.random() < 0.2) {
+        name.saleData.forSale = false; // 20% chance of delisting per turn
+      } else if (!name.saleData.forSale && Math.random() < 0.15) {
+        name.saleData.forSale = true; // 15% chance of listing per turn
         name.saleData.price = Math.floor(name.saleData.fmv * name.npcOwner.valueModifier);
       }
     });
@@ -435,7 +411,7 @@ export class Market {
 }
 
 // nameClass.js
-import factor from "./factor.js";
+import factor from "./nameFactor.js";
 
 export class ENSName {
   constructor(name,category,stats){
@@ -469,18 +445,32 @@ ENSName.prototype.calcFMV = function(marketPrice) {
 };
 
 
-// names.js
-export const names = [];
+// nameFactor.js
+export default function factor(status) { 
+  const commonFactor = Math.random() * (2 - 1) + 1; 
+  const premiumFactor = Math.random() * (3 - 2) + 2; 
+  const grailFactor = Math.random() * (4 - 3) + 3;
 
-for (let i = 0; i < 1000; i++){
-   let num = parseInt(i)
-   let str = num.toString().padStart(3,'0');
-  names.push(str)
+switch (status) {
+  case "grail":
+    return grailFactor;
+  case "premium":
+    return premiumFactor;
+  default:
+    return commonFactor;
 }
+}
+
+
+  
+
+
+// names.js
+export const names = Array.from({ length: 12 }, (_, i) => i.toString().padStart(3, '0'));
 
 // negotiationWizard.js
 export class Negotiation {
-  constructor(buyer,seller,domain,offer){
+  constructor(buyer, seller, domain, offer) {
     this.no = domain.fmv;
     this.yes = (((domain.fmv * seller.valueModifier) + domain.fmv) * 100) / 100;
     this.offer = offer;
@@ -495,37 +485,47 @@ export class Negotiation {
 
   getProbability() {
     if (this.offer >= this.yes) {
-       return "Probability of acceptance: 100%";
+      return "Probability of acceptance: 100%";
     } else if (this.offer <= this.no) {
-       return "Probability of acceptance: 0%";
+      return "Probability of acceptance: 0%";
     } else {
-       return `Probability of acceptance:  ${Math.floor(this.probability * 100)}` + '%';
+      const probability = Math.floor(this.probability * 100);
+      return `Probability of acceptance: ${probability}%`;
     }
   }
 
-  getResponse(seller) {
+  getResponse() {
     if (this.offer >= this.yes) {
-       return "Offer Accepted!"
+      return "Offer Accepted!";
     } else if (this.offer <= this.no) {
-       // was offer offensive?
-      const stinkbid = this.no - (this.no * .60);
-      const offensive = this.no - (this.no * .30);
-      const poorTaste = this.no - (this.no * .15);
-      // decline offer
+      const stinkbid = this.no - (this.no * 0.60);
+      const offensive = this.no - (this.no * 0.30);
+      const poorTaste = this.no - (this.no * 0.15);
+
       if (this.offer <= stinkbid) {
-       return "You've offended me for the last time!"
+        return "You've offended me for the last time!";
       } else if (this.offer > stinkbid && this.offer <= offensive) {
-        return "You have offended me!"
+        return "You have offended me!";
       } else if (this.offer > offensive && this.offer <= poorTaste) {
-        return "What poor taste!"
+        return "What poor taste!";
       } else {
-        return "Offer declined!"
+        return "Offer declined!";
       }
     } else {
       if (Math.random() < this.probability) {
-        return "Offer Accepted!" + `\n${this.domainName}` + `\nListed at: ${this.yes.toFixed(2)}` + ` by ${this.sellerName}` + `\nSold for: ${this.offer}` + ` to ${this.buyerName}` + `\nSellers starting bankroll: ${this.sellerBankroll}` + `\nSellers ending bankroll: ${this.sellerBankroll + this.offer}` + `\nBuyers starting bankroll: ${this.buyerBankroll}` + `\nBuyers ending bankroll: ${this.buyerBankroll - this.offer}`;
+        const response = [
+          "Offer Accepted!",
+          `${this.domainName}`,
+          `Listed at: ${this.yes.toFixed(2)} by ${this.sellerName}`,
+          `Sold for: ${this.offer} to ${this.buyerName}`,
+          `Sellers starting bankroll: ${this.sellerBankroll}`,
+          `Sellers ending bankroll: ${this.sellerBankroll + this.offer}`,
+          `Buyers starting bankroll: ${this.buyerBankroll}`,
+          `Buyers ending bankroll: ${this.buyerBankroll - this.offer}`
+        ];
+        return response.join("\n");
       } else {
-        return "Offer Declined!"
+        return "Offer Declined!";
       }
     }
   }
@@ -536,7 +536,7 @@ export class NPC {
   constructor(name){
     this.name = name;
     this.bankroll = Math.floor(Math.random() * 1000000);
-    this.valueModifier = Math.random() * 0.5;
+    this.valueModifier = (Math.random() * 0.5) + 1;
     this.portfolio = [];
     this.xray = false;
     this.extraTurn = false;
@@ -544,11 +544,17 @@ export class NPC {
 }
 
 // npcFactory.js
-export function npcFactory(npcNames,func) {
+export function npcFactory(npcNames,NPC) {
   return npcNames.map(npcName => {
-    return new func(npcName);
+    return new NPC(npcName);
   });
 }
+
+// objectBuilder.js
+export function nameObjectBuilder(names, category, stats, factory) {
+  return names.map((name) => factory(name, category, stats));
+}
+
 
 // player.js
 export const player1 = {
@@ -562,46 +568,54 @@ export const player1 = {
 
 // simulation.js
 export default function simPF(assetPrices, volatility = 0.1, marketType = "normal") {
-
   const changeThresholds = [
-    {pMin: 0.5, maxChange: 0.05},
-    {pMin: 0.7, maxChange: 0.12},
-    {pMin: 0.8, maxChange: 0.18},
-    {pMin: 0.9, maxChange: 0.25}
-  ]
-  Object.keys(assetPrices).forEach((key) => {
-      let asset = assetPrices[key];
+    { pMin: 0.5, maxChange: 0.05 },
+    { pMin: 0.7, maxChange: 0.12 },
+    { pMin: 0.8, maxChange: 0.18 },
+    { pMin: 0.9, maxChange: 0.25 }
+  ];
+
+  // Iterate over each asset in the assetPrices object
+  for (const key in assetPrices) {
+    if (assetPrices.hasOwnProperty(key)) {
+      const asset = assetPrices[key];
       let directionBias;
+
+      // Determine the direction bias based on the market type
       if (marketType === "bear") {
-          directionBias = -1;
+        directionBias = -1;
       } else if (marketType === "bull") {
-          directionBias = 1;
+        directionBias = 1;
       } else {
-          directionBias = Math.random() < 0.4 ? -1 : 1;
+        directionBias = Math.random() < 0.4 ? -1 : 1;
       }
 
+      // Calculate the initial percentage change based on volatility and direction bias
       let percentageChange = Math.random() * volatility * directionBias;
 
+      // Randomly adjust the percentage change in non-normal market conditions
       if (marketType !== "normal" && Math.random() > 0.8) {
-          percentageChange *= -1;
+        percentageChange *= -1;
       }
 
+      // Determine the maximum change based on the change thresholds
       let maxChange = changeThresholds[changeThresholds.length - 1].maxChange;
-      for (const threshold of changeThresholds){
-        if (Math.random() >= threshold.pMin){
+      for (const threshold of changeThresholds) {
+        if (Math.random() >= threshold.pMin) {
           maxChange = threshold.maxChange;
           break;
         }
       }
 
-      percentageChange = Math.max(Math.min(percentageChange,maxChange), -maxChange);
+      // Clamp the percentage change within the maximum change range
+      percentageChange = Math.max(Math.min(percentageChange, maxChange), -maxChange);
 
-      let newPrice = asset.price * (1 + percentageChange);
-      assetPrices[key].price = Math.round(newPrice * 100) / 100; 
-  });
+      // Calculate the new price based on the percentage change
+      const newPrice = asset.price * (1 + percentageChange);
+      assetPrices[key].price = Math.round(newPrice * 100) / 100;
+    }
+  }
 
   return assetPrices;
 }
-
-
 

@@ -83,10 +83,6 @@ this.market = new Market(ens, this.npcs);
     // Emit domain renewals 2x
 if (this.turn === this.firstRenewal || this.turn === this.secondRenewal) { this.domainRenewalEmitter.emitDomainRenewalEvent(); }
 
-
-      // Simulate domain name events (e.g., renewals, expirations)
-      this.market.simulateDomainEvents();
-
       // Update domain name prices based on market conditions
       const updatedPrices = simPF(this.market.getAssetPrices(),        this.market.volatility, this.market.marketType);
       this.market.updateAssetPrices(updatedPrices);
@@ -107,20 +103,12 @@ if (this.turn === this.firstRenewal || this.turn === this.secondRenewal) { this.
     console.log("---------------------------------------");
 
     this.market.domainNames.forEach((name) => {
-      const owner = name.saleData.owner;
-
-      let bankroll = "-";
-      if (owner) {
-        const npc = this.npcs.find((npc) => npc.name === owner);
-        if (npc) {
-           bankroll = Math.floor(npc.bankroll);
-        }
-      }
-
-      
-
-      
-      console.log(`${name.name} ${spaces}${name.saleData.fmv.toFixed(2)}${spaces}${owner}\t${bankroll}`);
+      const owner = name.npcOwner ? name.npcOwner.name : "-";
+      const bankroll = name.npcOwner ? Math.floor(name.npcOwner.bankroll) : "-";
+      const vPrice = parseInt(Math.floor(name.saleData.price));
+      const aPrice = vPrice.toString().padEnd(6," ");
+      const price = name.saleData.forSale ? aPrice : '0     ';
+      console.log(`${name.name} ${spaces}${price}${spaces}${owner.padEnd(10," ")}\t${bankroll}`);
     });
 
     console.log("---------------------------------------");
@@ -146,7 +134,7 @@ resolve();
   }
 
 
-  static run(totalTurns = 10) {
+  static run(totalTurns = 53) {
     const game = new Game(totalTurns);
     game.startSimulation();
   }
