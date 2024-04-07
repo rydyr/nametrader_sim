@@ -1,6 +1,6 @@
 export const player1 = {
-  name: "nametrader.eth",
-  bankroll: 35000,
+  name: "human.eth",
+  bankroll: 100000,
   valueModifier: 1,
   portfolio: [],
   xray: false,

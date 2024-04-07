@@ -1,5 +1,7 @@
+import { player1 } from "./player.js";
+
 export class Market {
-  constructor(domainNames,npcs) {
+  constructor(domainNames, npcs) {
     this.domainNames = domainNames;
     this.marketType = "normal";
     this.volatility = 0.1;
@@ -15,7 +17,7 @@ export class Market {
     this.npcs = npcs;
     this.npcOwnedPercentage = 1;
     this.npcPercentageListed = 0.5;
-    this.npcPriceMultiplier = Math.random() * 1 + 1
+    this.npcPriceMultiplier = Math.random() * 1 + 1;
 
     this.setMarketStartTurns();
   }
@@ -36,15 +38,14 @@ export class Market {
     // Determine if a bear or bull market should occur
     if (this.turnCount >= 5 && this.turnCount <= 47) {
       if (this.marketType === "normal") {
-        
         if (this.turnCount === this.bearStart && !this.bear) {
-          this.marketType = "bear"; 
+          this.marketType = "bear";
           this.bear = true;
-          this.sendMessage("Bear Market has started!")
+          this.sendMessage("Bear Market has started!");
         } else if (this.turnCount === this.bullStart && !this.bull) {
-        this.marketType = "bull";
-        this.bull = true;
-        this.sendMessage("Bull Market has started!");
+          this.marketType = "bull";
+          this.bull = true;
+          this.sendMessage("Bull Market has started!");
         }
       } else if (this.marketType === "bear") {
         this.bearMarketTurns++;
@@ -59,13 +60,19 @@ export class Market {
       (this.marketType === "bull" && this.bullMarketTurns >= this.bullEnd)
     ) {
       this.marketType = "normal";
-      this.sendMessage("The Market has returned to normal.")
+      this.sendMessage("The Market has returned to normal.");
     }
 
     if (this.marketType === "normal") {
-      this.volatility = Math.min(Math.max(this.volatility + (Math.random() - 0.5) * 0.02, 0), 0.15);
+      this.volatility = Math.min(
+        Math.max(this.volatility + (Math.random() - 0.5) * 0.02, 0),
+        0.15,
+      );
     } else {
-      this.volatility = Math.min(Math.max(this.volatility + (Math.random() - 0.5) * 0.05, 0), 0.25);
+      this.volatility = Math.min(
+        Math.max(this.volatility + (Math.random() - 0.5) * 0.05, 0),
+        0.25,
+      );
     }
   }
 
@@ -97,29 +104,37 @@ export class Market {
 
   simulateNPCOwnership() {
     this.domainNames.forEach((name) => {
-      const randomNPC = this.npcs[Math.floor(Math.random() * this.npcs.length)];
-      name.npcOwner = randomNPC;
-      name.saleData.owner = randomNPC.name;
-      randomNPC.portfolio.push(name);
+      if (!name.npcOwner && name.saleData.owner !== player1.name && !name.saleData.forSale) {
+        const randomNPC =
+          this.npcs[Math.floor(Math.random() * this.npcs.length)];
+        name.npcOwner = randomNPC;
+        name.saleData.owner = randomNPC.name;
+        randomNPC.portfolio.push(name);
+      }
     });
   }
 
   simulateNPCListings() {
-    const npcOwnedDomains = this.domainNames.filter((name) => name.npcOwner);
-    const npcListedCount = Math.floor(npcOwnedDomains.length * this.npcPercentageListed);
+    const npcOwnedDomains = this.domainNames.filter(
+      (name) => name.npcOwner && name.saleData.owner !== player1.name 
+    );
+    const npcListedCount = Math.floor(
+      npcOwnedDomains.length * this.npcPercentageListed,
+    );
     const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
     shuffledNPCDomains.slice(0, npcListedCount).forEach((name) => {
-      
-/**********Logging**********
+      /**********Logging**********
 
       console.log(`[Listing] Domain: ${name.name}`); 
       console.log(`[Listing] Owner: ${name.npcOwner.name}, Bankroll Before: ${name.npcOwner.bankroll}`); 
       */
-      
-      name.saleData.forSale = true;
-      name.saleData.price = Math.floor(name.saleData.fmv * name.npcOwner.valueModifier);
 
-/********** logging *********
+      name.saleData.forSale = true;
+      name.saleData.price = Math.floor(
+        name.saleData.fmv * name.npcOwner.valueModifier,
+      );
+
+      /********** logging *********
       
       console.log(`[Listing] Owner: ${name.npcOwner.name}, Bankroll After: ${name.npcOwner.bankroll}`); 
       console.log(`[Listing] Listed Price: ${name.saleData.price}`);
@@ -128,49 +143,73 @@ export class Market {
   }
 
   logMarketMessage(message) {
-    return console.log(`Sales Bot: ${message}`)
+    return console.log(`Sales Bot: ${message}`);
   }
 
-  updateNPCMarketActivity() {
-    const npcOwnedDomains = this.domainNames.filter((name) => name.npcOwner);
-    const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
+  listPlayerDomain(domain, salePrice) {
+    domain.saleData.forSale = true;
+    domain.saleData.price = salePrice;
+    console.log(`Listed ${domain.name} for sale for ${salePrice}`);
+    console.log(domain)
+  }
+  
 
-    shuffledNPCDomains.forEach((name) => {
-      // Simulate NPC sales
-      if (name.saleData.forSale && Math.random() < 0.3) { // 30% chance of sale per listed domain
+  updateNPCMarketActivity() {
+    const domainsForSale = this.domainNames.filter(
+      (name) => name.saleData.forSale);
+    const shuffledDomains = domainsForSale.sort(() => 0.5 - Math.random());
+
+    shuffledDomains.forEach((name) => {
+      // Simulate sales
+      if (Math.random() < 0.3) {
+        // 30% chance of sale per listed domain
         const salePrice = name.saleData.price;
 
-        let newOwner;
-        do {
-          newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
-        } while (newOwner === name.npcOwner);
+        const newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
+        
 
         if (newOwner.bankroll >= salePrice) {
-          name.saleData.owner = newOwner.name;
-
-          name.npcOwner.portfolio = name.npcOwner.portfolio.filter((d) => d !== name);
-          name.npcOwner.bankroll += salePrice;
-          name.npcOwner = newOwner;
-          newOwner.portfolio.push(name);
-          newOwner.bankroll -= salePrice;
-/*
-          if (name.status === "premium") {
-            this.logMarketMessage(`Premium name ${name.name} has been sold!`);
-          } else if (name.status === "grail") {
-            this.logMarketMessage(`Grail name ${name.name} has been sold!`);*/
-          this.logMarketMessage(`Name ${name.name} has been sold!`);
+          if (name.saleData.owner === player1.name) {
+            //transfer ownership from player to NPC
+            player1.portfolio = player1.portfolio.filter(
+              (domain) => domain !== name,
+            );
+            player1.bankroll += salePrice;
+            name.saleData.owner = newOwner.name;
+            name.npcOwner = newOwner;
+            newOwner.portfolio.push(name);
+            newOwner.bankroll -= salePrice;
+          } else {
+            //transfer ownership between NPCs
+            name.saleData.owner = newOwner.name;
+            name.npcOwner.portfolio = name.npcOwner.portfolio.filter(
+              (d) => d !== name,
+            );
+            name.npcOwner.bankroll += salePrice;
+            name.npcOwner = newOwner;
+            newOwner.portfolio.push(name);
+            newOwner.bankroll -= salePrice;
           }
+          /*
+            if (name.status === "premium") {
+              this.logMarketMessage(`Premium name ${name.name} has been sold!`);
+            } else if (name.status === "grail") {
+              this.logMarketMessage(`Grail name ${name.name} has been sold!`);*/
+          this.logMarketMessage(`Name ${name.name} has been sold!`);
         }
-        name.saleData.forSale = false;
-
+      }
+      if(name.saleData.owner !== player1.name) {
+     name.saleData.forSale = false;
+      };
       // Simulate change in listings
-      if (name.saleData.forSale && Math.random() < 0.2) {
+      if (name.saleData.owner !== player1.name && name.saleData.forSale && Math.random() < 0.2) {
         name.saleData.forSale = false; // 20% chance of delisting per turn
       } else if (!name.saleData.forSale && Math.random() < 0.15) {
         name.saleData.forSale = true; // 15% chance of listing per turn
-        name.saleData.price = Math.floor(name.saleData.fmv * name.npcOwner.valueModifier);
+        name.saleData.price = Math.floor(
+          name.saleData.fmv * name.npcOwner.valueModifier
+        );
       }
     });
   }
-  
 }
