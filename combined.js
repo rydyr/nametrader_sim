@@ -29,7 +29,11 @@ export class EventEmitter {
 
   generateEventQueue() {
     // Add the first event (always the same)
-    this.eventQueue.push(new Event("Welcome to the game Anon!\nAround these parts you're nobody without a .eth! So to get you started off right we're giving you 'human.eth' and $100,000. Consider the name a gift, but you have 52 weeks to make your buck and pay us back Anon!"));
+    this.eventQueue.push(
+      new Event(
+        "\n\t\t||====================||\n\t\t||== NAMETRADER.ETH ==||\n\t\t||====================||\n\n\t\t **Welcome to the Game!**\n\n||\t In Web3 you're nobody without a ||\n||.eth! So to get you started off \t ||\n||right we're gifting you 'human.eth'||\n||and lending you $100,000. You have ||\n||52 weeks to make your buck and pay ||\n||us back Anon!\t\t\t\t\t\t ||",
+      ),
+    );
 
     // Generate 50 random events from the event pool
     const randomEvents = this.getRandomEvents(50);
@@ -59,12 +63,15 @@ export class EventEmitter {
 
   generateDomainRenewalEvent() {
     if (this.renewalCount < 3) {
-      const renewalEvent = new Event("Domain renewal notice: Your domain is about to expire!");
+      const renewalEvent = new Event(
+        "Domain renewal notice: Your domain is about to expire!",
+      );
       this.eventQueue.unshift(renewalEvent);
       this.renewalCount++;
     }
   }
 }
+
 
 // factory.js
 import { ENSName } from './nameClass.js';
@@ -143,12 +150,11 @@ export class Game {
         this.market.simulateNPCOwnership();
         this.market.simulateNPCListings();
         //  console.log(this.npcs[0])
-        
       }
 
       // Display current market state
-      if (this.turn >= 1){
-      this.displayMarketState();
+      if (this.turn >= 1) {
+        this.displayMarketState();
       }
       // Update market conditions
       this.market.updateMarketConditions();
@@ -183,15 +189,18 @@ export class Game {
   displayMarketState() {
     const spaces = " ".repeat(2);
     console.log(`=== Week ${this.turn} ===\t\t\t== ${player1.name} ==`);
-    console.log(`Market Type: ${this.market.marketType}`);
+    console.log(
+      `Market Type: ${this.market.marketType}\t\t\t=${player1.bankroll}=`,
+    );
     console.log("Domain Name\tPrice\tOwner\tBankroll");
     console.log("---------------------------------------");
 
     this.market.domainNames.forEach((name) => {
-      const owner = name.npcOwner ? name.npcOwner.name : player1.name;
-     // const allOwners = name.saleData.owner === player1.name ? player1.name : owner;
-      const bankroll = name.npcOwner ? Math.floor(name.npcOwner.bankroll) : Math.floor(player1.bankroll);
-     // const allBankrolls = name.saleData.owner === player1.name ? player1.bankroll : bankroll;
+      const owner = name.npcOwner ? name.npcOwner.name : name.saleData.owner;
+      const bankroll = name.npcOwner
+        ? Math.floor(name.npcOwner.bankroll)
+        : Math.floor(player1.bankroll);
+      // const allBankrolls = name.saleData.owner === player1.name ? player1.bankroll : bankroll;
       const vPrice = parseInt(Math.floor(name.saleData.price));
       const aPrice = vPrice.toString().padEnd(6, " ");
       const price = name.saleData.forSale ? aPrice : "-     ";
@@ -209,11 +218,10 @@ export class Game {
       output: process.stdout,
     });
 
-
     while (true) {
       const question =
         this.turn <= 1
-          ? "\nPress Enter to Start..."
+          ? "\nPress Enter to Start...\n"
           : "\n\t\t\tOptions:\n\n[B] = Buy\n[N] = Negotiate \n[L] = List\n[D] = Delist\n[A] = Acc Bal\n[P] = Portfolio\n[Enter] = Next Turn...\n\n";
 
       const answer = await new Promise((resolve) => {
@@ -223,23 +231,38 @@ export class Game {
       });
 
       if (answer === "buy" || answer === "b") {
-        await this.handleBuyAction();
-        //this.market.updateNPCMarketActivity();
+       const buyResponse = await this.handleBuyAction(rl);
+        this.displayMarketState();
+        console.log(buyResponse)
         console.log();
         continue;
       } else if (answer === "list" || answer === "l") {
-        await this.handleSellAction();
-        //this.market.updateNPCMarketActivity();
+       const sellResponse = await this.handleSellAction(rl);
+        console.log(sellResponse);
         console.log();
         continue;
       } else if (answer === "negotiate" || answer === "n") {
-        await this.handleNegotiateAction();
-        //this.market.updateNPCMarketActivity();
+        const negotiationResult = await this.handleNegotiateAction(rl);
+        this.displayMarketState();
+        console.log(negotiationResult.probability);
+        console.log(negotiationResult.outcome);
+        console.log();
+        continue;
+      } else if (answer === "a") {
+        console.log(`\nYour current account balance is: ${player1.bankroll}`);
+        console.log();
+      } else if (answer === "p") {
+        this.getPlayerPortfolio();
+        console.log();
+        continue;        
+      } else if(answer === "d") {
+        await this.handleUserDelist(rl);
+        console.log();
+        this.displayMarketState();
         console.log();
         continue;
       } else if (answer === "") {
         this.market.updateNPCMarketActivity();
-        
         console.log();
         break;
       } else {
@@ -255,16 +278,11 @@ export class Game {
     // console.log(this.npcs[0]);
   }
 
-  async handleBuyAction() {
+  async handleBuyAction(rl) {
     // Prompt the player to enter the domain name they want to buy
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
     const domainName = await new Promise((resolve) => {
       rl.question("Enter the domain name you want to buy: ", (name) => {
-      //  rl.close();
+        //  rl.close();
         resolve(name);
       });
     });
@@ -286,22 +304,18 @@ export class Game {
         player1.bankroll -= domain.saleData.price;
         domain.saleData.owner = player1.name;
         domain.saleData.forSale = false;
-        console.log(`Successfully bought ${domainName}!`);
+        domain.saleData.last_sale_price = domain.saleData.price;
+        return `Successfully bought ${domainName}!`;
       } else {
-        console.log("Insufficient funds to buy the domain.");
+        return "Insufficient funds to buy the domain.";
       }
     } else {
-      console.log("Domain not found or not for sale.");
+      return "Domain not found or not for sale.";
     }
   }
 
-  async handleSellAction() {
+  async handleSellAction(rl) {
     // Prompt the player to enter the domain name they want to sell
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
     const domainName = await new Promise((resolve) => {
       rl.question("Enter the domain name you want to sell: ", (name) => {
         resolve(name);
@@ -315,45 +329,41 @@ export class Game {
       // Prompt the player to enter the sale price
       const salePrice = await new Promise((resolve) => {
         rl.question("Enter the sale price: ", (price) => {
-         // rl.close();
+          // rl.close();
           resolve(parseFloat(price));
         });
       });
 
       // List the domain for sale
       this.market.listPlayerDomain(domain, salePrice);
+      this.displayMarketState();
+      return `Successfully listed ${domainName} for sale!`;
     } else {
-      console.log("Domain not found in your portfolio.");
+      return "Domain not found in your portfolio.";
     }
   }
 
-  async handleNegotiateAction() {
+  async handleNegotiateAction(rl) {
     // Prompt the player to enter the domain name they want to negotiate for
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
     const domainName = await new Promise((resolve) => {
       rl.question(
         "Enter the domain name you want to negotiate for: ",
         (name) => {
-         // rl.close();
+          // rl.close();
           resolve(name);
         },
       );
     });
 
     // Find the domain in the market
-    const domain = this.market.domainNames.find(
-      (name) => name.name === domainName,
-    );
+      const domain = this.market.domainNames.find(
+        (name) => name.name === domainName,
+      );
 
-    if (domain && !domain.saleData.forSale) {
       // Prompt the player to enter the offer price
       const offerPrice = await new Promise((resolve) => {
         rl.question("Enter your offer price: ", (price) => {
-         // rl.close();
+          // rl.close();
           resolve(parseFloat(price));
         });
       });
@@ -366,12 +376,11 @@ export class Game {
         offerPrice,
       );
 
-      // Display the probability of acceptance and response
-      console.log(negotiation.getProbability());
-      console.log(negotiation.getResponse());
-
+      const negotiate = await negotiation.getResponse();
+      const probability = negotiation.getProbability();
+      //console.log(negotiate)
       // Handle the negotiation outcome
-      if (negotiation.getResponse().startsWith("Offer Accepted!")) {
+      if (negotiate.value) {
         // Transfer ownership and update bankrolls
         domain.npcOwner.portfolio = domain.npcOwner.portfolio.filter(
           (d) => d !== domain,
@@ -382,9 +391,51 @@ export class Game {
         player1.bankroll -= offerPrice;
         domain.saleData.owner = player1.name;
         domain.saleData.forSale = false;
+        domain.saleData.last_sale_price = offerPrice;
+    return {
+      outcome: negotiate.text,
+      probability: probability.text
+      };
+    } else {
+      return negotiate.text;
+    }
+  }
+
+  getPlayerPortfolio() {
+    console.log(`\n=== ${player1.name}'s Portfolio ===`);
+    console.log("Domain Name\tPurchase Price\tSale Price");
+    console.log("---------------------------------------");
+
+   player1.portfolio.forEach((name) => {
+      const price = name.saleData.price ? name.saleData.price : "-";
+      const purchPrice = name.saleData.last_sale_price ? name.saleData.last_sale_price : "-";
+      console.log(`${name.name}\t\t${purchPrice}\t\t${price}`);
+    });
+    console.log("---------------------------------------");
+  }
+
+  async handleUserDelist(rl){
+    // Prompt the player to enter the domain name they want to delist
+    const domainToDelist = await new Promise((resolve) => {
+      rl.question("Enter the domain name you want to delist: ", (name) => {
+         //rl.close();
+        resolve(name);
+      });
+    });
+
+    // Find the domain in the market
+    const domain = player1.portfolio.find(
+      (name) => name.name === domainToDelist);
+
+    if(domain){
+      if (domain.saleData.forSale) {
+        domain.saleData.forSale = false;
+        return `Successfully delisted ${domainToDelist}!`;
+      } else {
+        return "Domain not listed for sale.";
       }
     } else {
-      console.log("Domain not found or already for sale.");
+      return "Domain not found.";
     }
   }
 
@@ -502,7 +553,7 @@ export class Market {
 
   simulateNPCOwnership() {
     this.domainNames.forEach((name) => {
-      if (!name.npcOwner && name.saleData.owner !== player1.name) {
+      if (!name.npcOwner && name.saleData.owner !== player1.name && !name.saleData.forSale) {
         const randomNPC =
           this.npcs[Math.floor(Math.random() * this.npcs.length)];
         name.npcOwner = randomNPC;
@@ -514,7 +565,7 @@ export class Market {
 
   simulateNPCListings() {
     const npcOwnedDomains = this.domainNames.filter(
-      (name) => name.npcOwner && name.saleData.owner !== player1.name,
+      (name) => name.npcOwner && name.saleData.owner !== player1.name 
     );
     const npcListedCount = Math.floor(
       npcOwnedDomains.length * this.npcPercentageListed,
@@ -562,22 +613,25 @@ export class Market {
       if (Math.random() < 0.3) {
         // 30% chance of sale per listed domain
         const salePrice = name.saleData.price;
-
+        const nameFMV = name.saleData.fmv;
         const newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
+        const ownerValVar = newOwner.valueModifier;
+        const decidingFactor = nameFMV * ownerValVar;
+        const decidingCondition = name.saleData.price >= decidingFactor * 1.2 ? false : (name.saleData.price >= decidingFactor ? (Math.random() < 0.5 ? true : false) : true);
         
-
-        if (newOwner.bankroll >= salePrice) {
-          if (name.saleData.owner === player1.name) {
-            //transfer ownership from player to NPC
-            player1.portfolio = player1.portfolio.filter(
-              (domain) => domain !== name,
-            );
-            player1.bankroll += salePrice;
-            name.saleData.owner = newOwner.name;
-            name.npcOwner = true;
-            newOwner.portfolio.push(name);
-            newOwner.bankroll -= salePrice;
-          } else {
+        if (decidingCondition) {
+          if (newOwner.bankroll >= salePrice) {
+            if (name.saleData.owner === player1.name) {
+              //transfer ownership from player to NPC
+              player1.portfolio = player1.portfolio.filter(
+                (domain) => domain !== name,
+              );
+              player1.bankroll += salePrice;
+              name.saleData.owner = newOwner.name;
+              name.npcOwner = newOwner;
+              newOwner.portfolio.push(name);
+              newOwner.bankroll -= salePrice;
+            } else {
             //transfer ownership between NPCs
             name.saleData.owner = newOwner.name;
             name.npcOwner.portfolio = name.npcOwner.portfolio.filter(
@@ -588,23 +642,25 @@ export class Market {
             newOwner.portfolio.push(name);
             newOwner.bankroll -= salePrice;
           }
-          /*
-            if (name.status === "premium") {
-              this.logMarketMessage(`Premium name ${name.name} has been sold!`);
-            } else if (name.status === "grail") {
-              this.logMarketMessage(`Grail name ${name.name} has been sold!`);*/
-          this.logMarketMessage(`Name ${name.name} has been sold!`);
+            /*
+              if (name.status === "premium") {
+                this.logMarketMessage(`Premium name ${name.name} has been sold!`);
+              } else if (name.status === "grail") {
+                this.logMarketMessage(`Grail name ${name.name} has been sold!`);*/
+            this.logMarketMessage(`Name ${name.name} has been sold!`);
+          }
         }
       }
-      name.saleData.forSale = false;
-
+      if(name.saleData.owner !== player1.name) {
+     name.saleData.forSale = false;
+      };
       // Simulate change in listings
       if (name.saleData.owner !== player1.name && name.saleData.forSale && Math.random() < 0.2) {
         name.saleData.forSale = false; // 20% chance of delisting per turn
       } else if (!name.saleData.forSale && Math.random() < 0.15) {
         name.saleData.forSale = true; // 15% chance of listing per turn
         name.saleData.price = Math.floor(
-          name.saleData.fmv * name.npcOwner.valueModifier,
+          name.saleData.fmv * name.npcOwner.valueModifier
         );
       }
     });
@@ -635,6 +691,7 @@ export class ENSName {
       fmv: 0,
       owner: '',
       forSale: false,
+      last_sale_price: 0,
       price: 0,
     }
   };
@@ -668,13 +725,13 @@ switch (status) {
 
 
 // names.js
-export const names = Array.from({ length: 12 }, (_, i) => i.toString().padStart(3, '0'));
+export const names = Array.from({ length: 8 }, (_, i) => i.toString().padStart(3, '0'));
 
 // negotiationWizard.js
 export class Negotiation {
   constructor(buyer, seller, domain, offer) {
-    this.no = domain.fmv;
-    this.yes = (((domain.fmv * seller.valueModifier) + domain.fmv) * 100) / 100;
+    this.no = domain.saleData.fmv;
+    this.yes = (((domain.saleData.fmv * seller.valueModifier) + domain.saleData.fmv) * 100) / 100;
     this.offer = offer;
     this.sellerBankroll = seller.bankroll;
     this.buyerBankroll = buyer.bankroll;
@@ -687,47 +744,68 @@ export class Negotiation {
 
   getProbability() {
     if (this.offer >= this.yes) {
-      return "Probability of acceptance: 100%";
+      return {
+        text: "Probability of acceptance 100%",
+        value: 100
+      }
     } else if (this.offer <= this.no) {
-      return "Probability of acceptance: 0%";
+      return {
+        text: "Probability of acceptance 0%",
+        value: 0
+      }
     } else {
-      const probability = Math.floor(this.probability * 100);
-      return `Probability of acceptance: ${probability}%`;
+      return {
+        text: `Probability of acceptance ${Math.floor(this.probability * 100)}%`,
+        value: Math.floor(this.probability * 100)
+      }
     }
   }
 
   getResponse() {
     if (this.offer >= this.yes) {
-      return "Offer Accepted!";
+      return {
+        text: "Offer Accepted",
+        value: true
+      };
     } else if (this.offer <= this.no) {
       const stinkbid = this.no - (this.no * 0.60);
       const offensive = this.no - (this.no * 0.30);
       const poorTaste = this.no - (this.no * 0.15);
 
+
+      // implement punishments for stinkbids later
       if (this.offer <= stinkbid) {
-        return "You've offended me for the last time!";
+        return { 
+          text: "StinkBid",
+          value: false
+               };
       } else if (this.offer > stinkbid && this.offer <= offensive) {
-        return "You have offended me!";
+        return {
+          text: "Offensive",
+          value: false
+               };
       } else if (this.offer > offensive && this.offer <= poorTaste) {
-        return "What poor taste!";
+        return {
+          text: "Poor Taste",
+          value: false
+               };
       } else {
-        return "Offer declined!";
+        return {
+          text: "Offer Rejected",
+          value: false
+               };
       }
     } else {
       if (Math.random() < this.probability) {
-        const response = [
-          "Offer Accepted!",
-          `${this.domainName}`,
-          `Listed at: ${this.yes.toFixed(2)} by ${this.sellerName}`,
-          `Sold for: ${this.offer} to ${this.buyerName}`,
-          `Sellers starting bankroll: ${this.sellerBankroll}`,
-          `Sellers ending bankroll: ${this.sellerBankroll + this.offer}`,
-          `Buyers starting bankroll: ${this.buyerBankroll}`,
-          `Buyers ending bankroll: ${this.buyerBankroll - this.offer}`
-        ];
-        return response.join("\n");
+        return {
+          text: "Offer Accepted",
+          value: true
+               };
       } else {
-        return "Offer Declined!";
+        return {
+          text: "Offer declined",
+          value: false
+               };
       }
     }
   }

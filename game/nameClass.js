@@ -20,6 +20,7 @@ export class ENSName {
       fmv: 0,
       owner: '',
       forSale: false,
+      last_sale_price: 0,
       price: 0,
     }
   };

@@ -1,7 +1,7 @@
 export class Negotiation {
   constructor(buyer, seller, domain, offer) {
-    this.no = domain.fmv;
-    this.yes = (((domain.fmv * seller.valueModifier) + domain.fmv) * 100) / 100;
+    this.no = domain.saleData.fmv;
+    this.yes = (((domain.saleData.fmv * seller.valueModifier) + domain.saleData.fmv) * 100) / 100;
     this.offer = offer;
     this.sellerBankroll = seller.bankroll;
     this.buyerBankroll = buyer.bankroll;
@@ -14,47 +14,68 @@ export class Negotiation {
 
   getProbability() {
     if (this.offer >= this.yes) {
-      return "Probability of acceptance: 100%";
+      return {
+        text: "Probability of acceptance 100%",
+        value: 100
+      }
     } else if (this.offer <= this.no) {
-      return "Probability of acceptance: 0%";
+      return {
+        text: "Probability of acceptance 0%",
+        value: 0
+      }
     } else {
-      const probability = Math.floor(this.probability * 100);
-      return `Probability of acceptance: ${probability}%`;
+      return {
+        text: `Probability of acceptance ${Math.floor(this.probability * 100)}%`,
+        value: Math.floor(this.probability * 100)
+      }
     }
   }
 
   getResponse() {
     if (this.offer >= this.yes) {
-      return "Offer Accepted!";
+      return {
+        text: "Offer Accepted",
+        value: true
+      };
     } else if (this.offer <= this.no) {
       const stinkbid = this.no - (this.no * 0.60);
       const offensive = this.no - (this.no * 0.30);
       const poorTaste = this.no - (this.no * 0.15);
 
+
+      // implement punishments for stinkbids later
       if (this.offer <= stinkbid) {
-        return "You've offended me for the last time!";
+        return { 
+          text: "StinkBid",
+          value: false
+               };
       } else if (this.offer > stinkbid && this.offer <= offensive) {
-        return "You have offended me!";
+        return {
+          text: "Offensive",
+          value: false
+               };
       } else if (this.offer > offensive && this.offer <= poorTaste) {
-        return "What poor taste!";
+        return {
+          text: "Poor Taste",
+          value: false
+               };
       } else {
-        return "Offer declined!";
+        return {
+          text: "Offer Rejected",
+          value: false
+               };
       }
     } else {
       if (Math.random() < this.probability) {
-        const response = [
-          "Offer Accepted!",
-          `${this.domainName}`,
-          `Listed at: ${this.yes.toFixed(2)} by ${this.sellerName}`,
-          `Sold for: ${this.offer} to ${this.buyerName}`,
-          `Sellers starting bankroll: ${this.sellerBankroll}`,
-          `Sellers ending bankroll: ${this.sellerBankroll + this.offer}`,
-          `Buyers starting bankroll: ${this.buyerBankroll}`,
-          `Buyers ending bankroll: ${this.buyerBankroll - this.offer}`
-        ];
-        return response.join("\n");
+        return {
+          text: "Offer Accepted",
+          value: true
+               };
       } else {
-        return "Offer Declined!";
+        return {
+          text: "Offer declined",
+          value: false
+               };
       }
     }
   }

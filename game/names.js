@@ -1,1 +1,1 @@
-export const names = Array.from({ length: 12 }, (_, i) => i.toString().padStart(3, '0'));
+export const names = Array.from({ length: 8 }, (_, i) => i.toString().padStart(3, '0'));

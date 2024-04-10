@@ -66,13 +66,12 @@ export class Game {
       if (this.turn) {
         this.market.simulateNPCOwnership();
         this.market.simulateNPCListings();
-        //  console.log(this.npcs[0])
         
       }
 
       // Display current market state
-      if (this.turn >= 1){
-      this.displayMarketState();
+      if (this.turn >= 1) {
+        this.displayMarketState();
       }
       // Update market conditions
       this.market.updateMarketConditions();
@@ -107,14 +106,18 @@ export class Game {
   displayMarketState() {
     const spaces = " ".repeat(2);
     console.log(`=== Week ${this.turn} ===\t\t\t== ${player1.name} ==`);
-    console.log(`Market Type: ${this.market.marketType}\t\t\t=${player1.bankroll}=`);
+    console.log(
+      `Market Type: ${this.market.marketType}\t\t\t=${player1.bankroll}=`,
+    );
     console.log("Domain Name\tPrice\tOwner\tBankroll");
     console.log("---------------------------------------");
 
     this.market.domainNames.forEach((name) => {
       const owner = name.npcOwner ? name.npcOwner.name : name.saleData.owner;
-      const bankroll = name.npcOwner ? Math.floor(name.npcOwner.bankroll) : Math.floor(player1.bankroll);
-     // const allBankrolls = name.saleData.owner === player1.name ? player1.bankroll : bankroll;
+      const bankroll = name.npcOwner
+        ? Math.floor(name.npcOwner.bankroll)
+        : Math.floor(player1.bankroll);
+      // const allBankrolls = name.saleData.owner === player1.name ? player1.bankroll : bankroll;
       const vPrice = parseInt(Math.floor(name.saleData.price));
       const aPrice = vPrice.toString().padEnd(6, " ");
       const price = name.saleData.forSale ? aPrice : "-     ";
@@ -132,11 +135,10 @@ export class Game {
       output: process.stdout,
     });
 
-
     while (true) {
       const question =
         this.turn <= 1
-          ? "\nPress Enter to Start..."
+          ? "\nPress Enter to Start...\n"
           : "\n\t\t\tOptions:\n\n[B] = Buy\n[N] = Negotiate \n[L] = List\n[D] = Delist\n[A] = Acc Bal\n[P] = Portfolio\n[Enter] = Next Turn...\n\n";
 
       const answer = await new Promise((resolve) => {
@@ -146,25 +148,43 @@ export class Game {
       });
 
       if (answer === "buy" || answer === "b") {
-        await this.handleBuyAction();
-        //this.market.updateNPCMarketActivity();
+       const buyResponse = await this.handleBuyAction(rl);
+        this.displayMarketState();
+        console.log(buyResponse)
         console.log();
         continue;
       } else if (answer === "list" || answer === "l") {
-        await this.handleSellAction();
-        //this.market.updateNPCMarketActivity();
+       const sellResponse = await this.handleSellAction(rl);
+        console.log(sellResponse);
         console.log();
         continue;
       } else if (answer === "negotiate" || answer === "n") {
-        await this.handleNegotiateAction();
-        //this.market.updateNPCMarketActivity();
+        let neg;
+        let prob;
+        await this.handleNegotiateAction(rl, (negotiate,probability) => {
+            neg = negotiate.text;
+            prob = probability.text;
+        });
+        this.displayMarketState();
+        console.log(prob);
+        console.log(neg);
         console.log();
         continue;
       } else if (answer === "a") {
-        console.log(`\nYour current account balance is: ${player1.bankroll}`)
-      }else if (answer === "") {
+        console.log(`\nYour current account balance is: ${player1.bankroll}`);
+        console.log();
+      } else if (answer === "p") {
+        this.getPlayerPortfolio();
+        console.log();
+        continue;        
+      } else if(answer === "d") {
+        await this.handleUserDelist(rl);
+        console.log();
+        this.displayMarketState();
+        console.log();
+        continue;
+      } else if (answer === "") {
         this.market.updateNPCMarketActivity();
-        
         console.log();
         break;
       } else {
@@ -180,16 +200,10 @@ export class Game {
     // console.log(this.npcs[0]);
   }
 
-  async handleBuyAction() {
+  async handleBuyAction(rl) {
     // Prompt the player to enter the domain name they want to buy
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
     const domainName = await new Promise((resolve) => {
       rl.question("Enter the domain name you want to buy: ", (name) => {
-      //  rl.close();
         resolve(name);
       });
     });
@@ -211,22 +225,18 @@ export class Game {
         player1.bankroll -= domain.saleData.price;
         domain.saleData.owner = player1.name;
         domain.saleData.forSale = false;
-        console.log(`Successfully bought ${domainName}!`);
+        domain.saleData.last_sale_price = domain.saleData.price;
+        return `Successfully bought ${domainName}!`;
       } else {
-        console.log("Insufficient funds to buy the domain.");
+        return "Insufficient funds to buy the domain.";
       }
     } else {
-      console.log("Domain not found or not for sale.");
+      return "Domain not found or not for sale.";
     }
   }
 
-  async handleSellAction() {
+  async handleSellAction(rl) {
     // Prompt the player to enter the domain name they want to sell
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
     const domainName = await new Promise((resolve) => {
       rl.question("Enter the domain name you want to sell: ", (name) => {
         resolve(name);
@@ -240,46 +250,38 @@ export class Game {
       // Prompt the player to enter the sale price
       const salePrice = await new Promise((resolve) => {
         rl.question("Enter the sale price: ", (price) => {
-         // rl.close();
           resolve(parseFloat(price));
         });
       });
 
       // List the domain for sale
       this.market.listPlayerDomain(domain, salePrice);
-      this.displayMarketState()
+      this.displayMarketState();
+      return `Successfully listed ${domainName} for sale!`;
     } else {
-      console.log("Domain not found in your portfolio.");
+      return "Domain not found in your portfolio.";
     }
   }
 
-  async handleNegotiateAction() {
+  async handleNegotiateAction(rl, callback) {
     // Prompt the player to enter the domain name they want to negotiate for
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
     const domainName = await new Promise((resolve) => {
       rl.question(
         "Enter the domain name you want to negotiate for: ",
         (name) => {
-         // rl.close();
           resolve(name);
         },
       );
     });
 
     // Find the domain in the market
-    const domain = this.market.domainNames.find(
-      (name) => name.name === domainName,
-    );
+      const domain = this.market.domainNames.find(
+        (name) => name.name === domainName,
+      );
 
-    if (domain && !domain.saleData.forSale) {
       // Prompt the player to enter the offer price
       const offerPrice = await new Promise((resolve) => {
         rl.question("Enter your offer price: ", (price) => {
-         // rl.close();
           resolve(parseFloat(price));
         });
       });
@@ -292,12 +294,10 @@ export class Game {
         offerPrice,
       );
 
-      // Display the probability of acceptance and response
-      console.log(negotiation.getProbability());
-      console.log(negotiation.getResponse());
-
+      const negotiate = await negotiation.getResponse();
+      const probability = negotiation.getProbability();
       // Handle the negotiation outcome
-      if (negotiation.getResponse().startsWith("Offer Accepted!")) {
+      if (negotiate.value) {
         // Transfer ownership and update bankrolls
         domain.npcOwner.portfolio = domain.npcOwner.portfolio.filter(
           (d) => d !== domain,
@@ -308,9 +308,49 @@ export class Game {
         player1.bankroll -= offerPrice;
         domain.saleData.owner = player1.name;
         domain.saleData.forSale = false;
+        domain.saleData.last_sale_price = offerPrice;
+        callback(negotiate,probability)
+    return 
+    } else {
+        callback(negotiate,probability)
+      return
+    }
+  }
+
+  getPlayerPortfolio() {
+    console.log(`\n=== ${player1.name}'s Portfolio ===`);
+    console.log("Domain Name\tPurchase Price\tSale Price");
+    console.log("---------------------------------------");
+
+   player1.portfolio.forEach((name) => {
+      const price = name.saleData.price ? name.saleData.price : "-";
+      const purchPrice = name.saleData.last_sale_price ? name.saleData.last_sale_price : "-";
+      console.log(`${name.name}\t\t${purchPrice}\t\t${price}`);
+    });
+    console.log("---------------------------------------");
+  }
+
+  async handleUserDelist(rl){
+    // Prompt the player to enter the domain name they want to delist
+    const domainToDelist = await new Promise((resolve) => {
+      rl.question("Enter the domain name you want to delist: ", (name) => {
+        resolve(name);
+      });
+    });
+
+    // Find the domain in the market
+    const domain = player1.portfolio.find(
+      (name) => name.name === domainToDelist);
+
+    if(domain){
+      if (domain.saleData.forSale) {
+        domain.saleData.forSale = false;
+        return `Successfully delisted ${domainToDelist}!`;
+      } else {
+        return "Domain not listed for sale.";
       }
     } else {
-      console.log("Domain not found or already for sale.");
+      return "Domain not found.";
     }
   }
 

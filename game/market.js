@@ -32,10 +32,13 @@ export class Market {
   }
 
   updateMarketConditions() {
+    
     // Update market type and volatility based on simulation logic
+    
     this.turnCount++;
 
     // Determine if a bear or bull market should occur
+    
     if (this.turnCount >= 5 && this.turnCount <= 47) {
       if (this.marketType === "normal") {
         if (this.turnCount === this.bearStart && !this.bear) {
@@ -55,6 +58,7 @@ export class Market {
     }
 
     // Update market type back to normal if bear or bull market duration is over
+    
     if (
       (this.marketType === "bear" && this.bearMarketTurns >= this.bearEnd) ||
       (this.marketType === "bull" && this.bullMarketTurns >= this.bullEnd)
@@ -123,22 +127,10 @@ export class Market {
     );
     const shuffledNPCDomains = npcOwnedDomains.sort(() => 0.5 - Math.random());
     shuffledNPCDomains.slice(0, npcListedCount).forEach((name) => {
-      /**********Logging**********
-
-      console.log(`[Listing] Domain: ${name.name}`); 
-      console.log(`[Listing] Owner: ${name.npcOwner.name}, Bankroll Before: ${name.npcOwner.bankroll}`); 
-      */
-
       name.saleData.forSale = true;
       name.saleData.price = Math.floor(
         name.saleData.fmv * name.npcOwner.valueModifier,
       );
-
-      /********** logging *********
-      
-      console.log(`[Listing] Owner: ${name.npcOwner.name}, Bankroll After: ${name.npcOwner.bankroll}`); 
-      console.log(`[Listing] Listed Price: ${name.saleData.price}`);
-***************************/
     });
   }
 
@@ -149,8 +141,6 @@ export class Market {
   listPlayerDomain(domain, salePrice) {
     domain.saleData.forSale = true;
     domain.saleData.price = salePrice;
-    console.log(`Listed ${domain.name} for sale for ${salePrice}`);
-    console.log(domain)
   }
   
 
@@ -164,22 +154,25 @@ export class Market {
       if (Math.random() < 0.3) {
         // 30% chance of sale per listed domain
         const salePrice = name.saleData.price;
-
+        const nameFMV = name.saleData.fmv;
         const newOwner = this.npcs[Math.floor(Math.random() * this.npcs.length)];
+        const ownerValVar = newOwner.valueModifier;
+        const decidingFactor = nameFMV * ownerValVar;
+        const decidingCondition = name.saleData.price >= decidingFactor * 1.2 ? false : (name.saleData.price >= decidingFactor ? (Math.random() < 0.5 ? true : false) : true);
         
-
-        if (newOwner.bankroll >= salePrice) {
-          if (name.saleData.owner === player1.name) {
-            //transfer ownership from player to NPC
-            player1.portfolio = player1.portfolio.filter(
-              (domain) => domain !== name,
-            );
-            player1.bankroll += salePrice;
-            name.saleData.owner = newOwner.name;
-            name.npcOwner = newOwner;
-            newOwner.portfolio.push(name);
-            newOwner.bankroll -= salePrice;
-          } else {
+        if (decidingCondition) {
+          if (newOwner.bankroll >= salePrice) {
+            if (name.saleData.owner === player1.name) {
+              //transfer ownership from player to NPC
+              player1.portfolio = player1.portfolio.filter(
+                (domain) => domain !== name,
+              );
+              player1.bankroll += salePrice;
+              name.saleData.owner = newOwner.name;
+              name.npcOwner = newOwner;
+              newOwner.portfolio.push(name);
+              newOwner.bankroll -= salePrice;
+            } else {
             //transfer ownership between NPCs
             name.saleData.owner = newOwner.name;
             name.npcOwner.portfolio = name.npcOwner.portfolio.filter(
@@ -190,12 +183,13 @@ export class Market {
             newOwner.portfolio.push(name);
             newOwner.bankroll -= salePrice;
           }
-          /*
-            if (name.status === "premium") {
-              this.logMarketMessage(`Premium name ${name.name} has been sold!`);
-            } else if (name.status === "grail") {
-              this.logMarketMessage(`Grail name ${name.name} has been sold!`);*/
-          this.logMarketMessage(`Name ${name.name} has been sold!`);
+            /*
+              if (name.status === "premium") {
+                this.logMarketMessage(`Premium name ${name.name} has been sold!`);
+              } else if (name.status === "grail") {
+                this.logMarketMessage(`Grail name ${name.name} has been sold!`);*/
+            this.logMarketMessage(`Name ${name.name} has been sold!`);
+          }
         }
       }
       if(name.saleData.owner !== player1.name) {

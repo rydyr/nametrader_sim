@@ -10,7 +10,11 @@ export class EventEmitter {
 
   generateEventQueue() {
     // Add the first event (always the same)
-    this.eventQueue.push(new Event("\n\t\tWelcome to the game Anon!\n\n\tAround these parts you're nobody without a .eth! So to get you started off right we're giving you 'human.eth' and $100,000. Consider the name a gift, but you have 52 weeks to make your buck and pay us back Anon!"));
+    this.eventQueue.push(
+      new Event(
+        "\n\t\t||====================||\n\t\t||== NAMETRADER.ETH ==||\n\t\t||====================||\n\n\t\t **Welcome to the Game!**\n\n||\t In Web3 you're nobody without a ||\n||.eth! So to get you started off \t ||\n||right we're gifting you 'human.eth'||\n||and lending you $100,000. You have ||\n||52 weeks to make your buck and pay ||\n||us back Anon!\t\t\t\t\t\t ||",
+      ),
+    );
 
     // Generate 50 random events from the event pool
     const randomEvents = this.getRandomEvents(50);
@@ -40,7 +44,9 @@ export class EventEmitter {
 
   generateDomainRenewalEvent() {
     if (this.renewalCount < 3) {
-      const renewalEvent = new Event("Domain renewal notice: Your domain is about to expire!");
+      const renewalEvent = new Event(
+        "Domain renewal notice: Your domain is about to expire!",
+      );
       this.eventQueue.unshift(renewalEvent);
       this.renewalCount++;
     }
